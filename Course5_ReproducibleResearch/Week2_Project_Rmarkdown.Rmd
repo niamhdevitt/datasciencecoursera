@@ -1,0 +1,89 @@
+Course 5: Reproducible Research
+Week 2 Project
+
+Download and unzip data file code
+```{r downloaddata}
+url = "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+download.file(url,destfile="./Data/Dataset.zip",sep="/")
+unzip(zipfile="./data/Dataset.zip",exdir="./data")
+
+data <-read.csv("./data/activity.csv")
+```
+
+2. Histogram of Daily Steps
+```{r histogram}
+library(dplyr)
+data2 <- data %>% select(date, steps) %>% group_by(date) %>% summarize(total_steps = sum(steps)) %>% na.omit()
+hist(data2$total_steps, main = "Histogram of Total Daily Steps", col =4, xlab = "Steps", breaks=20)
+```
+
+3. Mean and median number of steps taken each day in sample
+```{r meanmedian}
+mean(data2$total_steps)
+median(data2$total_steps)
+```
+
+4. Time series plot of average number of steps taken
+```{r timeseries}
+data3 <- data %>% select(interval, steps) %>% na.omit() %>% group_by(interval) %>% summarize(ave_steps = mean(steps))
+
+library(ggplot2)
+ggplot(data3, aes(x=interval, y=ave_steps)) + geom_line() + 
+  labs(y="Ave number of steps") +
+  labs(title = "Average number of steps taken per day")
+```
+5. 5 minute interval that on average contains maximum number of steps
+```{r max_interval}
+subset(data3, data3$ave_steps==max(data3$ave_steps))
+```
+
+6. Imputing missing data
+```{r missing}
+missing <- sum(is.na(data$steps))
+missing
+```
+
+2304 missing step counts. Strategy for imputation is to take the average for that 5 minute interval over the whole dataset and replace NAs and check no NAs remaining
+```{r imputation}
+data_mean <- data %>% group_by(interval) %>% 
+  mutate(steps = ifelse(is.na(steps), mean(steps, na.rm =T), steps))
+head(data_mean)
+missing2 <- sum(is.na(data_mean$steps))
+missing2
+```
+
+7. Histogram of steps taken after imputation
+```{r hist after imp}
+data5 <- data_mean %>% select(date, steps) %>% group_by(date) %>% summarize(total_steps = sum(steps))
+hist(data5$total_steps, main = "Histogram of Total Daily Steps (after Imp)", col =4, xlab = "Steps", breaks=20)
+```
+
+Comparison of mean and median before and after imputation
+```{r mean comparison}
+mean_before <- mean(data$steps, na.rm = T)
+mean_after <- mean(data_mean$steps)
+median_before <- median(data$steps, na.rm = T)
+median_after <- median(data_mean$steps)
+
+mean_before
+mean_after
+median_before
+median_after
+```
+No difference in mean or median, so it is a suitable imputation
+
+8.  Panel plot of average number of steps at weekend and weekdays
+```{r weekend weekday comparison}
+data_mean$date <- as.Date(data_mean$date)
+data_mean$weekday <- weekdays(data_mean$date)
+data_mean$weekend <- ifelse(data_mean$weekday == "Saturday" | data_mean$weekday == "Sunday", "weekend", "weekday")
+
+data_weekday <- data_mean %>% select(weekend, steps, interval) %>% group_by(weekend, interval) %>% summarize(ave_steps = mean(steps))
+
+ggplot(data_weekday) + aes(x=interval, y=ave_steps, color = weekend) +
+  geom_line() +
+  facet_grid(weekend~.) +
+  labs(title = "Average number of steps by weekend and weekday") +
+  xlab("interval") +
+  ylab("Average number of steps")
+```
